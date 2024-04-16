@@ -131,3 +131,4 @@ dist
 
 # data cache
 **/_cache/
+**/data/chat.json

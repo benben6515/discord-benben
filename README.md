@@ -1,10 +1,16 @@
 # discord-bot
 
-Invite bot: <https://discord.com/api/oauth2/authorize?client_id=1158085453065494538&permissions=8&scope=bot%20applications.commands>
+- env
+
+```md
+* open `.env.example` file
+* change your token, id, etc.
+* change `.env.example` to `.env`
+```
 
 ## Deploy (Heroku)
 
-[Heroku](https://dashboard.heroku.com/apps/benben-discord-bot)
+[Heroku](https://dashboard.heroku.com/)
 
 ```sh
 pnpm i
