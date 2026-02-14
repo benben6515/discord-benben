@@ -1,6 +1,7 @@
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 import 'dotenv/config'
 import { getCache, setCache } from './services/index.js'
+import { chatWithOpenClaw } from './services/openclaw.js'
 import logger from './utilities/logger.js'
 
 const { TOKEN, AUTHOR_ID, CHANNEL_ID, GUILD_ID, WHITE_LIST_STRING } = process.env
@@ -71,6 +72,38 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
       await message.reply(`<@${id}> 您現在 ${level} 等了！`)
     } else if (/吃瓜/.test(message.content)) {
       await message.reply(`<@${AUTHOR_ID}> 吃瓜叫我！`)
+    } else if (/[!|！]吃什麼/.test(message.content)) {
+      const thinkingList = [' 嗯 ... 讓我想想 ...', ' 好問題！']
+      const dinnerList = [' 炒飯 ', ' 什錦麵 ', ' 水餃 ', ' 牛排 ', ' 火鍋 ', '麥當勞']
+      const result = thinkingList[Math.floor(Math.random() * thinkingList.length)]
+      message.reply(result)
+      setTimeout(
+        () => {
+          message.reply(dinnerList[Math.floor(Math.random() * dinnerList.length)])
+        },
+        Math.random() * 3000 + 1000,
+      )
+    } else if (/[!|！]ai\s+.+/.test(message.content)) {
+      const userMessage = message.content.replace(/[!|！]ai\s+/, '')
+      try {
+        await message.channel.sendTyping()
+        const response = await chatWithOpenClaw({
+          userId: id,
+          message: userMessage,
+          systemPrompt: 'You are a helpful AI assistant. Respond in Traditional Chinese unless requested otherwise.',
+        })
+        if (response.length > 2000) {
+          const chunks = response.match(/.{1,2000}/g)
+          for (const chunk of chunks) {
+            await message.reply(chunk)
+          }
+        } else {
+          await message.reply(response)
+        }
+      } catch (error) {
+        logger.error('AI command error:', error)
+        await message.reply(`AI 錯誤: ${error.message}`)
+      }
     } else {
       await onChat({ id, chat, client })
     }
@@ -80,11 +113,12 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
 
   client.login(TOKEN)
 
-  // functions
+  // === functions ===
+
   async function onChat({ id, chat, client }) {
     if (!chat?.[id]) chat[id] = { count: 0, level: 0 }
     chat[id].count += 1
-    if (Math.random() < Math.random() * 0.1) {
+    if (Math.random() < 0) {
       chat[id].level += 1
       if (id === AUTHOR_ID) chat[id].level += 10 + Math.floor(Math.random() * 100)
       const channelId = CHANNEL_ID
@@ -96,7 +130,6 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
       await channel?.send(template)
     }
     setCacheDebounce('chat', chat)
-    console.log(chat)
   }
 }
 
