@@ -9,7 +9,7 @@ const openaiClient = new OpenAI({
   maxRetries: 2,
 })
 
-export async function chatWithOpenClaw({ userId, message, systemPrompt }) {
+export async function chatWithOpenClaw({ userId, message, systemPrompt, images = [] }) {
   try {
     const messages = []
 
@@ -17,10 +17,18 @@ export async function chatWithOpenClaw({ userId, message, systemPrompt }) {
       messages.push({ role: 'system', content: systemPrompt })
     }
 
-    messages.push({ role: 'user', content: message })
+    let userContent = message
+    if (images.length > 0) {
+      userContent = [
+        { type: 'text', text: message },
+        ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
+      ]
+    }
+
+    messages.push({ role: 'user', content: userContent })
 
     const response = await openaiClient.chat.completions.create({
-      model: 'openclaw:main',
+      model: images.length > 0 ? 'openclaw:vision' : 'openclaw:main',
       messages,
       user: userId,
       max_tokens: 2048,

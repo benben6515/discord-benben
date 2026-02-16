@@ -3,8 +3,9 @@ import 'dotenv/config'
 import { getCache, setCache } from './services/index.js'
 import { chatWithOpenClaw } from './services/openclaw.js'
 import logger from './utilities/logger.js'
+import { exec } from 'child_process'
 
-const { TOKEN, AUTHOR_ID, CHANNEL_ID, GUILD_ID, WHITE_LIST_STRING } = process.env
+const { TOKEN, AUTHOR_ID, CHANNEL_ID, GUILD_ID, WHITE_LIST_STRING, ASSISTANT_CHANNEL_ID } = process.env
 
 let timer = null
 function setCacheDebounce(key = 'chat', data = {}) {
@@ -83,13 +84,64 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
         },
         Math.random() * 3000 + 1000,
       )
-    } else if (/[!|！]ai\s+.+/.test(message.content)) {
+    } else if (/[!|！]ja/.test(message.content)) {
+      // 圖片日文翻譯功能 - 默認手機版
+      const images = Array.from(message.attachments.values())
+
+      if (images.length === 0) {
+        await message.reply('請先傳送一張照片！📸')
+        return
+      }
+
+      await message.channel.sendTyping()
+
+      try {
+        // 獲取第一張圖片 URL
+        const imageUrl = images[0].url
+
+        // 執行 vision_japanese.py 腳本（默認手機版）
+        const scriptPath = './scripts/vision_japanese.py'
+        const result = await new Promise((resolve, reject) => {
+          exec(`python3 ${scriptPath} '${imageUrl}'`, (error, stdout, stderr) => {
+            if (error) {
+              logger.error('Vision script error:', error)
+              logger.error('stderr:', stderr)
+              reject(error)
+            } else {
+              resolve(stdout)
+            }
+          })
+        })
+
+        // 發送結果到 assistant channel
+        const assistantChannelId = ASSISTANT_CHANNEL_ID || CHANNEL_ID
+        const assistantChannel = client?.channels?.cache?.get(assistantChannelId)
+
+        if (assistantChannel) {
+          // await assistantChannel.send({
+          //   content: `🇯🇵 **圖片辨識結果** - 來自 @${message.author.username}\n\n\`\`\`\n${result}\n\`\`\``,
+          // })
+          await message.reply({
+            content: `🇯🇵 **圖片辨識結果** - 來自 @${message.author.username}\n\n\`\`\`\n${result}\n\`\`\``,
+          })
+          await message.react('✅')
+        } else {
+          throw new Error('找不到 assistant channel')
+        }
+      } catch (error) {
+        logger.error('Vision Japanese error:', error)
+        await message.reply(`❌ 處理失敗：${error.message}`)
+        await message.react('❌')
+      }
+    } else if (/[!|！]ai(\s+.+)?/.test(message.content)) {
       const userMessage = message.content.replace(/[!|！]ai\s+/, '')
+      const images = Array.from(message.attachments.values()).map((attachment) => attachment.url)
       try {
         await message.channel.sendTyping()
         const response = await chatWithOpenClaw({
           userId: id,
           message: userMessage,
+          images,
           systemPrompt: 'You are a helpful AI assistant. Respond in Traditional Chinese unless requested otherwise.',
         })
         if (response.length > 2000) {
