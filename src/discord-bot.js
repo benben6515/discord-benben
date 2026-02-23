@@ -56,7 +56,6 @@ export function initDiscordBot() {
       const guild = client.guilds.cache.get(GUILD_ID)
       const fetchedMembers = await guild.members.fetch({ withPresences: true })
       const totalOnline = fetchedMembers.filter((member) => member)
-      // console.log(totalOnline)
       const ids = Object.keys(chat)
       let data = []
       ids.forEach((id) => {
@@ -64,7 +63,6 @@ export function initDiscordBot() {
         data.push({ name: target?.nickname ?? target?.user?.globalName ?? '-', level: chat[id]?.level ?? 0 })
       })
       data = data.sort((a, b) => b.level - a.level)
-      // console.log(Object.values(totalOnline).map((e) => e?.guild?.globalName ?? '0'))
       await message.reply(` ==== 聊天等級排行榜 ====
 ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '**' : ''}`).join('\n')}
 `)
@@ -135,12 +133,7 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
       const images = Array.from(message.attachments.values()).map((attachment) => attachment.url)
       try {
         await message.channel.sendTyping()
-        const response = await chatWithOpenClaw({
-          userId: id,
-          message: userMessage,
-          images,
-          systemPrompt: 'You are a helpful AI assistant. Respond in Traditional Chinese unless requested otherwise.',
-        })
+        const response = await chatWithOpenClaw({ userId: id, message: userMessage, images })
         if (response.length > 2000) {
           const chunks = response.match(/.{1,2000}/g)
           for (const chunk of chunks) {
@@ -194,7 +187,6 @@ async function onMessageReactionAdd(client, reaction, user) {
   }
 
   try {
-    // Bookmark
     if (reaction.emoji.name === '🔖') {
       const id = user.id
       const template = `

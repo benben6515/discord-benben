@@ -10,7 +10,9 @@ const openaiClient = new OpenAI({
   timeout: 30000,
 })
 
-export async function chatWithOpenClaw({ userId, message, systemPrompt, images = [] }) {
+const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant. Respond in Traditional Chinese unless requested otherwise.`
+
+export async function chatWithOpenClaw({ userId, message, systemPrompt = DEFAULT_SYSTEM_PROMPT, images = [] }) {
   const ROLE = AUTHOR_ID === userId ? 'MASTER' : 'GUEST'
   const messages = []
 
@@ -25,7 +27,6 @@ export async function chatWithOpenClaw({ userId, message, systemPrompt, images =
   }
 
   messages.push({ role: 'user', content: userContent })
-
   const createRequest = async () =>
     openaiClient.chat.completions.create({
       model: images.length > 0 ? 'openclaw:vision' : 'openclaw:main',
