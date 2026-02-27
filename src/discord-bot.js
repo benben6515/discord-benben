@@ -1,7 +1,7 @@
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 import 'dotenv/config'
 import { getCache, setCache } from './services/index.js'
-import { chatWithOpenClaw } from './services/openclaw.js'
+import { chatWithAI } from './services/openclaw.js'
 import logger from './utilities/logger.js'
 import { exec } from 'child_process'
 
@@ -96,7 +96,6 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
       try {
         // 獲取第一張圖片 URL
         const imageUrl = images[0].url
-
         // 執行 vision_check.py 腳本（默認手機版）
         const scriptPath = './scripts/vision_check.py'
         const result = await new Promise((resolve, reject) => {
@@ -128,26 +127,28 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
         await message.reply(`❌ 處理失敗：${error.message}`)
         await message.react('❌')
       }
-    } else if (/[!|！]ai(\s+.+)?/.test(message.content)) {
-      const userMessage = message.content.replace(/[!|！]ai\s+/, '')
-      const images = Array.from(message.attachments.values()).map((attachment) => attachment.url)
-      try {
-        await message.channel.sendTyping()
-        const response = await chatWithOpenClaw({ userId: id, message: userMessage, images })
-        if (response.length > 2000) {
-          const chunks = response.match(/.{1,2000}/g)
-          for (const chunk of chunks) {
-            await message.reply(chunk)
-          }
-        } else {
-          await message.reply(response)
-        }
-      } catch (error) {
-        logger.error('AI command error:', error)
-        await message.reply(`AI 錯誤: ${error.message}`)
-      }
     } else {
-      await onChat({ id, chat, client })
+      const userMessage = await getAIUserMessage(message, client)
+      if (userMessage !== null) {
+        const images = Array.from(message.attachments.values()).map((attachment) => attachment.url)
+        try {
+          await message.channel.sendTyping()
+          const response = await chatWithAI({ userId: id, message: userMessage, images })
+          if (response.length > 2000) {
+            const chunks = response.match(/.{1,2000}/g)
+            for (const chunk of chunks) {
+              await message.reply(chunk)
+            }
+          } else {
+            await message.reply(response)
+          }
+        } catch (error) {
+          logger.error('AI command error:', error)
+          await message.reply(`AI 錯誤: ${error.message}`)
+        }
+      } else {
+        await onChat({ id, chat, client })
+      }
     }
   })
 
@@ -156,6 +157,27 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
   client.login(TOKEN)
 
   // === functions ===
+
+  async function getAIUserMessage(message, client) {
+    if (/[!|！]ai(\s+.+)?/.test(message.content)) {
+      return message.content.replace(/[!|！]ai\s+/, '')
+    }
+    if (message.mentions.has(client.user)) {
+      const cleaned = message.content.replace(/<@!?\d+>/g, '').trim()
+      if (!cleaned) {
+        await message.reply('嗨！有什麼我可以幫你的嗎？')
+        return null
+      }
+      return cleaned
+    }
+    if (message.reference) {
+      const referencedMessage = await message.channel.messages.fetch(message.reference.messageId)
+      if (referencedMessage.author.id === client.user.id) {
+        return message.content
+      }
+    }
+    return null
+  }
 
   async function onChat({ id, chat, client }) {
     if (!chat?.[id]) chat[id] = { count: 0, level: 0 }
