@@ -128,7 +128,7 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
         await message.react('❌')
       }
     } else {
-      const userMessage = await getAIUserMessage(message, client)
+      const userMessage = await getAIUserMessage({ id, message, client })
       if (userMessage !== null) {
         const images = Array.from(message.attachments.values()).map((attachment) => attachment.url)
         try {
@@ -158,7 +158,9 @@ ${data.map((e, i) => `${i < 3 ? '**' : ''}${e.name} : ${e.level} 等${i < 3 ? '*
 
   // === functions ===
 
-  async function getAIUserMessage(message, client) {
+  async function getAIUserMessage({ id, message, client }) {
+    // ignore author id (the openclaw will auto reply)
+    if (id === AUTHOR_ID) return null
     if (/[!|！]ai(\s+.+)?/.test(message.content)) {
       return message.content.replace(/[!|！]ai\s+/, '')
     }
